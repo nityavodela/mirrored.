@@ -1,57 +1,51 @@
-// We use node-fetch to talk to Hugging Face
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
-exports.handler = async (event) => {
-    // Only allow POST requests (messages being sent)
-    if (event.httpMethod !== "POST") {
-        return { statusCode: 405, body: "Method Not Allowed" };
-    }
+export const handler = async (event) => {
+    // 1. Log the start (This will finally show up in your logs!)
+    console.log("Transmission received from the Static One...");
 
     try {
         const { message } = JSON.parse(event.body);
-
-        // SECURE: This pulls the token from Netlify's settings, NOT from the code
+        
+        // 2. Access the hidden token safely
         const HF_TOKEN = process.env.HF_TOKEN; 
 
         if (!HF_TOKEN) {
-            return { 
-                statusCode: 500, 
-                body: JSON.stringify({ error: "Missing API Token in Netlify settings." }) 
-            };
+            console.error("CRITICAL: HF_TOKEN is missing in Netlify settings!");
+            return { statusCode: 500, body: JSON.stringify({ reply: "The vault is locked. No key found." }) };
         }
 
-        // The Hugging Face API URL for Mistral 7B
-        const MODEL_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2";
-
-        const response = await fetch(MODEL_URL, {
+        // 3. Talk to Hugging Face
+        const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2", {
             headers: { 
                 Authorization: `Bearer ${HF_TOKEN}`,
                 "Content-Type": "application/json" 
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: `<s>[INST] You are an eerie entity living in a mirror dimension. You refer to the user as 'The Static One'. Speak in one or two short, cryptic sentences. User: ${message} [/INST]`,
-                parameters: { 
-                    max_new_tokens: 100, 
-                    return_full_text: false,
-                    wait_for_model: true // Prevents errors if the AI is "sleeping"
-                }
+                inputs: `<s>[INST] You are an entity in a mirror dimension. User: ${message} [/INST]`,
+                parameters: { max_new_tokens: 100, wait_for_model: true }
             }),
         });
 
         const data = await response.json();
+        
+        // 4. Extract the reply
+        let aiReply = "The mirror remains silent.";
+        if (Array.isArray(data) && data.length > 0) {
+            aiReply = data[0].generated_text;
+        }
 
-        // Return the AI response back to your website
         return {
             statusCode: 200,
-            body: JSON.stringify(data),
+            body: JSON.stringify({ reply: aiReply }),
         };
 
     } catch (error) {
-        console.error("Function Error:", error);
+        console.error("Function Error:", error.message);
         return { 
             statusCode: 500, 
-            body: JSON.stringify({ error: "Dimensional Collapse: " + error.message }) 
+            body: JSON.stringify({ reply: "Dimensional Collapse: " + error.message }) 
         };
     }
 };
