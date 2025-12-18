@@ -1,9 +1,7 @@
 {
-  "name": "mirror-world-terminal",
-  "version": "1.0.0",
-  "description": "A mirrored dimension communication portal",
-  "main": "index.html",
+  "name": "mirror-world",
+  "type": "module",
   "dependencies": {
-    "node-fetch": "^2.6.7"
+    "node-fetch": "^3.3.0"
   }
 }
